@@ -1,0 +1,41 @@
+# SO Login Flow with Zuul / Spring Cloud Security
+hscale=auto;
+
+W: web_browser;
+N: nginx_ingress;
+A: so_api_gateway;
+I: idam;
+U: so_ui;
+
+W,N,A,I,U;
+W->N:GET <so_host>/so/index.html;
+box N--N: Checks hostname and route;
+N->A:GET <so_host>/so/index.html;
+box A--A: Check JSESSIONID;
+activate A;
+A->W:Redirect to <so_host>/login (Set JSESSIONID 1);
+
+W->N:GET <so_host>/login (JSESSIONID 1);
+N->A:GET  <so_host>/login (JSESSIONID 1);
+A->W:Redirect to <keycloak_host>/../auth;
+
+W->N:GET <keycloak_host>/../auth;
+N->I:GET <keycloak_host>/../auth;
+I->W:Keycloak Login Page;
+  
+box W--W: User enters username/password;
+
+W->N:POST <keycloak_host>/../authenticate;
+N->I:POST <keycloak_host>/../authenticate;
+I->W:Redirect to <so_host>/login;
+
+W->N:GET <so_host>/login (JSESSIONID 1);
+N->A:GET <so_host>/login (JSESSIONID 1);
+A->W:Redirect to <so_host>/so/index.html (Set JSESSIONID 2);
+
+W->N:GET <so_host>/so/index.html (JSESSIONID 2);
+N->A:GET <so_host>/so/index.html (JSESSIONID 2);
+deactivate A;
+box A--A: Check JSESSIONID;
+A->U:GET <so_host>/so/index.html (JSESSIONID 2);
+U->W:SO Index Page;
